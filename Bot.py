@@ -1,64 +1,76 @@
-import telebot
-from telebot import types
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-# Инициализация бота с токеном
+# Токен бота
 TOKEN = '6692785864:AAEqASjDj-9JcmIZKGOjCSgvXWXDv7E7KaY'
-ADMIN_ID = 1694921116
-bot = telebot.TeleBot(TOKEN)
 
-# Словарь для хранения данных пользователей
-user_data = {}
+# Вопросы для бота
+questions = [
+    "Ты один?",
+    "Ты без мамы?",
+    "Ты без отца?",
+    "Ты без совести готов убить пса?",
+    "Любишь негров?",
+    "Ты расист?",
+    "Ты одобряешь нацизм?",
+    "Любишь казахов?",
+    "А узбеков?",
+    "Ну может палочку сникерса?"
+]
 
-# Обработчик команды /start
-@bot.message_handler(commands=['start'])
-def start_command(message):
-    user_id = message.from_user.id
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    name_button = types.KeyboardButton("Начать сбор данных")
-    markup.add(name_button)
-    bot.send_message(user_id, "Привет! Нажмите 'Начать сбор данных', чтобы предоставить информацию.", reply_markup=markup)
+# Последнее сообщение вместо вопроса
+final_message = "МОЛОДЕЦ. Ты олицетворение изгоя. Твой шанс на отца 5%"
 
-# Обработчик кнопки "Начать сбор данных"
-@bot.message_handler(func=lambda message: message.text == "Начать сбор данных")
-def ask_name(message):
-    user_id = message.from_user.id
-    bot.send_message(user_id, "Пожалуйста, введите ваше имя:")
-    bot.register_next_step_handler(message, process_name)
+# Словарь для отслеживания прогресса пользователей
+user_progress = {}
 
-def process_name(message):
-    user_id = message.from_user.id
-    user_data[user_id] = {'name': message.text}
-    bot.send_message(user_id, "Пожалуйста, введите вашу фамилию:")
-    bot.register_next_step_handler(message, process_surname)
+# Стартовая команда
+def start(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    user_progress[user_id] = 0  # Начинаем с первого вопроса
+    ask_question(update, context, user_id)
 
-def process_surname(message):
-    user_id = message.from_user.id
-    user_data[user_id]['surname'] = message.text
-    bot.send_message(user_id, "Пожалуйста, введите ваш возраст:")
-    bot.register_next_step_handler(message, process_age)
+# Функция для отправки вопроса
+def ask_question(update: Update, context: CallbackContext, user_id):
+    # Получаем текущий индекс вопроса пользователя
+    question_index = user_progress.get(user_id, 0)
+    
+    # Если вопросы закончились, отправляем финальное сообщение
+    if question_index >= len(questions):
+        update.message.reply_text(final_message)
+        del user_progress[user_id]  # Удаляем прогресс пользователя
+        return
+    
+    # Отправляем текущий вопрос
+    question = questions[question_index]
+    
+    # Кнопки Да и Нет
+    reply_markup = ReplyKeyboardMarkup([['Да', 'Нет']], one_time_keyboard=True, resize_keyboard=True)
+    context.bot.send_message(chat_id=user_id, text=question, reply_markup=reply_markup)
 
-def process_age(message):
-    user_id = message.from_user.id
-    try:
-        user_data[user_id]['age'] = int(message.text)
-        bot.send_message(user_id, "Пожалуйста, введите ваш номер телефона:")
-        bot.register_next_step_handler(message, process_phone)
-    except ValueError:
-        bot.send_message(user_id, "Пожалуйста, введите корректный возраст.")
+# Функция обработки ответа пользователя
+def handle_response(update: Update, context: CallbackContext):
+    user_id = update.message.from_user.id
+    
+    # Проверяем, есть ли пользователь в списке тех, кто проходит опрос
+    if user_id in user_progress:
+        # Увеличиваем индекс вопроса на 1
+        user_progress[user_id] += 1
+        ask_question(update, context, user_id)
+    else:
+        # Если пользователь не начал опрос, просим его начать с команды /start
+        update.message.reply_text("Пожалуйста, начните с команды /start.")
 
-def process_phone(message):
-    user_id = message.from_user.id
-    user_data[user_id]['phone'] = message.text
-    # Отправка данных администратору
-    admin_message = (
-        f"Новый пользователь:\n"
-        f"Имя: {user_data[user_id]['name']}\n"
-        f"Фамилия: {user_data[user_id]['surname']}\n"
-        f"Возраст: {user_data[user_id]['age']}\n"
-        f"Телефон: {user_data[user_id]['phone']}\n"
-    )
-    bot.send_message(ADMIN_ID, admin_message)
-    bot.send_message(user_id, "Спасибо! Ваши данные были отправлены.")
+# Обработчики команд и сообщений
+updater = Updater(TOKEN)
+dispatcher = updater.dispatcher
+
+# Команда /start
+dispatcher.add_handler(CommandHandler('start', start))
+
+# Обработчик сообщений с ответами
+dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), handle_response))
 
 # Запуск бота
-bot.polling()
+updater.start_polling()
+updater.idle()
