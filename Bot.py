@@ -1,15 +1,16 @@
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import telebot
+from telebot import types
 
 # Токен бота
 TOKEN = '6692785864:AAEqASjDj-9JcmIZKGOjCSgvXWXDv7E7KaY'
+bot = telebot.TeleBot(TOKEN)
 
-# Вопросы для бота
+# Вопросы для последовательного прохождения
 questions = [
     "Ты один?",
     "Ты без мамы?",
     "Ты без отца?",
-    "Ты без совести готов убить пса?",
+    "Ты без совести, готов убить пса?",
     "Любишь негров?",
     "Ты расист?",
     "Ты одобряешь нацизм?",
@@ -18,59 +19,48 @@ questions = [
     "Ну может палочку сникерса?"
 ]
 
-# Последнее сообщение вместо вопроса
+# Последнее сообщение, если все вопросы пройдены
 final_message = "МОЛОДЕЦ. Ты олицетворение изгоя. Твой шанс на отца 5%"
 
-# Словарь для отслеживания прогресса пользователей
+# Словарь для отслеживания текущего вопроса каждого пользователя
 user_progress = {}
 
-# Стартовая команда
-def start(update: Update, context: CallbackContext):
-    user_id = update.message.from_user.id
+# Обработчик команды /start
+@bot.message_handler(commands=['start'])
+def start(message):
+    user_id = message.from_user.id
     user_progress[user_id] = 0  # Начинаем с первого вопроса
-    ask_question(update, context, user_id)
+    ask_question(user_id)
 
-# Функция для отправки вопроса
-def ask_question(update: Update, context: CallbackContext, user_id):
-    # Получаем текущий индекс вопроса пользователя
+# Функция для отправки вопроса пользователю
+def ask_question(user_id):
     question_index = user_progress.get(user_id, 0)
     
     # Если вопросы закончились, отправляем финальное сообщение
     if question_index >= len(questions):
-        update.message.reply_text(final_message)
-        del user_progress[user_id]  # Удаляем прогресс пользователя
+        bot.send_message(user_id, final_message)
         return
     
+    # Создаем кнопки Да и Нет
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    yes_button = types.KeyboardButton("Да")
+    no_button = types.KeyboardButton("Нет")
+    markup.add(yes_button, no_button)
+    
     # Отправляем текущий вопрос
-    question = questions[question_index]
-    
-    # Кнопки Да и Нет
-    reply_markup = ReplyKeyboardMarkup([['Да', 'Нет']], one_time_keyboard=True, resize_keyboard=True)
-    context.bot.send_message(chat_id=user_id, text=question, reply_markup=reply_markup)
+    bot.send_message(user_id, questions[question_index], reply_markup=markup)
 
-# Функция обработки ответа пользователя
-def handle_response(update: Update, context: CallbackContext):
-    user_id = update.message.from_user.id
+# Обработчик всех текстовых сообщений
+@bot.message_handler(func=lambda message: True)
+def handle_answer(message):
+    user_id = message.from_user.id
     
-    # Проверяем, есть ли пользователь в списке тех, кто проходит опрос
+    # Увеличиваем индекс вопроса для пользователя
     if user_id in user_progress:
-        # Увеличиваем индекс вопроса на 1
         user_progress[user_id] += 1
-        ask_question(update, context, user_id)
-    else:
-        # Если пользователь не начал опрос, просим его начать с команды /start
-        update.message.reply_text("Пожалуйста, начните с команды /start.")
-
-# Обработчики команд и сообщений
-updater = Updater(TOKEN)
-dispatcher = updater.dispatcher
-
-# Команда /start
-dispatcher.add_handler(CommandHandler('start', start))
-
-# Обработчик сообщений с ответами
-dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), handle_response))
+    
+    # Переходим к следующему вопросу
+    ask_question(user_id)
 
 # Запуск бота
-updater.start_polling()
-updater.idle()
+bot.polling()
