@@ -11,10 +11,14 @@ starting_balance = 2500
 # Словарь для хранения балансов пользователей
 balances = {}
 
-# Функция для генерации выигрыша с множителем
-def generate_win(amount):
-    multiplier = random.uniform(0.5, 5)  # Множитель выигрыша от 0.5 до 5
-    return amount * multiplier
+# Функция для генерации выигрыша с шансом на проигрыш
+def spin_result(amount):
+    win_chance = random.uniform(0, 100)  # Генерируем шанс выигрыша
+    if win_chance <= 50:  # 50% шанс на проигрыш
+        return -amount  # Проигрыш
+    else:
+        multiplier = random.uniform(1.2, 1.5)  # Множитель выигрыша от 1.2 до 1.5
+        return amount * multiplier - amount  # Чистый выигрыш
 
 # Функция для получения шанса на выигрыш
 def calculate_chance():
@@ -57,12 +61,16 @@ def spin(message):
             bot.send_message(message.chat.id, "Недостаточно средств на балансе.")
             return
 
-        # Генерируем результат выигрыша
-        win_amount = generate_win(amount)
-        balance += win_amount - amount
+        # Генерируем результат ставки
+        result = spin_result(amount)
+        balance += result
         balances[user_id] = balance
 
-        bot.send_message(message.chat.id, f"Вы выиграли {win_amount:.2f} 💰!")
+        if result > 0:
+            bot.send_message(message.chat.id, f"Поздравляем! Вы выиграли {result:.2f} 💰!")
+        else:
+            bot.send_message(message.chat.id, f"К сожалению, вы проиграли {abs(result):.2f} 💰.")
+
         bot.send_message(message.chat.id, f"Ваш новый баланс: {balance:.2f} 💰")
 
     except (IndexError, ValueError):
@@ -89,11 +97,15 @@ def casino(message):
             return
 
         # Генерируем результат
-        win_amount = generate_win(amount)
-        balance += win_amount - amount
+        result = spin_result(amount)
+        balance += result
         balances[user_id] = balance
 
-        bot.send_message(message.chat.id, f"Вы выиграли {win_amount:.2f} 💰 в Казино!")
+        if result > 0:
+            bot.send_message(message.chat.id, f"Поздравляем! Вы выиграли {result:.2f} 💰 в Казино!")
+        else:
+            bot.send_message(message.chat.id, f"К сожалению, вы проиграли {abs(result):.2f} 💰.")
+
         bot.send_message(message.chat.id, f"Ваш новый баланс: {balance:.2f} 💰")
 
     except (IndexError, ValueError):
@@ -120,11 +132,15 @@ def lottery(message):
             return
 
         # Генерируем результат лотереи
-        win_amount = generate_win(amount)
-        balance += win_amount - amount
+        result = spin_result(amount)
+        balance += result
         balances[user_id] = balance
 
-        bot.send_message(message.chat.id, f"Вы выиграли {win_amount:.2f} 💰 в Лотерее!")
+        if result > 0:
+            bot.send_message(message.chat.id, f"Поздравляем! Вы выиграли {result:.2f} 💰 в Лотерее!")
+        else:
+            bot.send_message(message.chat.id, f"К сожалению, вы проиграли {abs(result):.2f} 💰.")
+
         bot.send_message(message.chat.id, f"Ваш новый баланс: {balance:.2f} 💰")
 
     except (IndexError, ValueError):
