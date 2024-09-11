@@ -1,97 +1,162 @@
 import telebot
 import random
+from telebot import types
 
 TOKEN = '6732720595:AAFePTUr9fb4678Avx4Y74ViuSBJQQ8mACM'
 bot = telebot.TeleBot(TOKEN)
 
-# Начальный баланс
+# Начальный баланс для каждого игрока
 starting_balance = 2500
-
-# Джекпот
-jackpot = 1000
 
 # Словарь для хранения балансов пользователей
 balances = {}
 
 # Функция для генерации выигрыша с множителем
 def generate_win(amount):
-    global jackpot
-    chance = random.uniform(0, 1)  # Вероятность от 0 до 1
+    multiplier = random.uniform(0.5, 5)  # Множитель выигрыша от 0.5 до 5
+    return amount * multiplier
 
-    if chance <= 0.5:  # 50% шанс проигрыша
-        jackpot += amount * 0.05  # 5% проигрыша добавляются в джекпот
-        return 0, chance * 100
-    elif chance <= 0.8:  # 30% шанс маленького выигрыша
-        win_amount = amount * 1.5  # Выигрыш в 1.5 раза больше
-        return win_amount, chance * 100
-    elif chance <= 0.95:  # 15% шанс среднего выигрыша
-        win_amount = amount * 2  # Выигрыш в 2 раза больше
-        return win_amount, chance * 100
-    else:  # 5% шанс сорвать джекпот
-        win_amount = jackpot
-        jackpot = 1000  # Обновляем джекпот после выигрыша
-        return win_amount, chance * 100
+# Функция для получения шанса на выигрыш
+def calculate_chance():
+    return round(random.uniform(10, 100), 2)  # Шанс от 10% до 100%
 
-# Команда "старт"
+# Команда /start - приветствие и установка начального баланса
 @bot.message_handler(commands=['start'])
 def start(message):
-    balances[message.from_user.id] = starting_balance
-    bot.send_message(message.chat.id, "Добро пожаловать в игру! Ваш начальный баланс: {} 💰".format(starting_balance))
+    user_id = message.from_user.id
+    balances[user_id] = starting_balance
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    commands_button = types.KeyboardButton("Команды")
+    markup.add(commands_button)
+    bot.send_message(message.chat.id, f"Привет! Ваш начальный баланс: {starting_balance} 💰", reply_markup=markup)
 
-# Команда "баланс"
+# Команда для отображения текущего баланса
 @bot.message_handler(commands=['balance'])
 def balance(message):
-    balance = balances.get(message.from_user.id, starting_balance)
-    bot.send_message(message.chat.id, "Ваш текущий баланс: {} 💰".format(balance))
+    user_id = message.from_user.id
+    balance = balances.get(user_id, starting_balance)
+    bot.send_message(message.chat.id, f"Ваш текущий баланс: {balance:.2f} 💰")
 
-# Команда "спин"
+# Команда /spin для ставок в слоте
 @bot.message_handler(commands=['spin'])
 def spin(message):
     try:
+        user_id = message.from_user.id
+        balance = balances.get(user_id, starting_balance)
+
+        # Получаем сумму ставки
         amount = int(message.text.split()[1])
+
+        # Проверяем, что ставка больше или равна 25
         if amount < 25:
             bot.send_message(message.chat.id, "Минимальная ставка 25 💰")
             return
-        
-        balance = balances.get(message.from_user.id, starting_balance)
-        if amount > balance:
-            bot.send_message(message.chat.id, "Недостаточно средств для ставки.")
-            return
-        
-        win_amount, chance = generate_win(amount)
-        balance -= amount
-        balance += win_amount
-        balances[message.from_user.id] = balance
-        
-        if win_amount == 0:
-            bot.send_message(message.chat.id, "К сожалению, вы проиграли. Шанс выигрыша: {:.2f}%".format(chance))
-        else:
-            bot.send_message(message.chat.id, "Поздравляем! Вы выиграли {:.2f} 💰 (Шанс выигрыша: {:.2f}%)".format(win_amount, chance))
-        
-        bot.send_message(message.chat.id, "Ваш текущий баланс: {} 💰".format(balance))
-    except (IndexError, ValueError):
-        bot.send_message(message.chat.id, "Используйте команду /spin [сумма]")
 
-# Команда "шанс"
+        # Проверяем, что у пользователя достаточно средств
+        if amount > balance:
+            bot.send_message(message.chat.id, "Недостаточно средств на балансе.")
+            return
+
+        # Генерируем результат выигрыша
+        win_amount = generate_win(amount)
+        balance += win_amount - amount
+        balances[user_id] = balance
+
+        bot.send_message(message.chat.id, f"Вы выиграли {win_amount:.2f} 💰!")
+        bot.send_message(message.chat.id, f"Ваш новый баланс: {balance:.2f} 💰")
+
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "Пожалуйста, используйте формат команды: /spin [сумма]")
+
+# Команда /casino - аналогичная /spin
+@bot.message_handler(commands=['casino'])
+def casino(message):
+    try:
+        user_id = message.from_user.id
+        balance = balances.get(user_id, starting_balance)
+
+        # Получаем сумму ставки
+        amount = int(message.text.split()[1])
+
+        # Проверяем минимальную ставку
+        if amount < 25:
+            bot.send_message(message.chat.id, "Минимальная ставка 25 💰")
+            return
+
+        # Проверяем баланс
+        if amount > balance:
+            bot.send_message(message.chat.id, "Недостаточно средств на балансе.")
+            return
+
+        # Генерируем результат
+        win_amount = generate_win(amount)
+        balance += win_amount - amount
+        balances[user_id] = balance
+
+        bot.send_message(message.chat.id, f"Вы выиграли {win_amount:.2f} 💰 в Казино!")
+        bot.send_message(message.chat.id, f"Ваш новый баланс: {balance:.2f} 💰")
+
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "Пожалуйста, используйте формат команды: /casino [сумма]")
+
+# Команда /lottery для лотереи
+@bot.message_handler(commands=['lottery'])
+def lottery(message):
+    try:
+        user_id = message.from_user.id
+        balance = balances.get(user_id, starting_balance)
+
+        # Получаем сумму ставки
+        amount = int(message.text.split()[1])
+
+        # Проверяем минимальную ставку
+        if amount < 25:
+            bot.send_message(message.chat.id, "Минимальная ставка 25 💰")
+            return
+
+        # Проверяем баланс
+        if amount > balance:
+            bot.send_message(message.chat.id, "Недостаточно средств на балансе.")
+            return
+
+        # Генерируем результат лотереи
+        win_amount = generate_win(amount)
+        balance += win_amount - amount
+        balances[user_id] = balance
+
+        bot.send_message(message.chat.id, f"Вы выиграли {win_amount:.2f} 💰 в Лотерее!")
+        bot.send_message(message.chat.id, f"Ваш новый баланс: {balance:.2f} 💰")
+
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "Пожалуйста, используйте формат команды: /lottery [сумма]")
+
+# Команда /chance для отображения шансов на выигрыш
 @bot.message_handler(commands=['chance'])
 def chance(message):
     try:
+        user_id = message.from_user.id
         amount = int(message.text.split()[1])
-        if amount < 25:
-            bot.send_message(message.chat.id, "Минимальная ставка 25 💰")
-            return
 
-        chance = random.uniform(10, 100)
-        bot.send_message(message.chat.id, "Ваш шанс на выигрыш составляет {:.2f}%".format(chance))
+        # Генерация шанса
+        chance = calculate_chance()
+
+        bot.send_message(message.chat.id, f"Ваш шанс на выигрыш составляет {chance}%")
+
     except (IndexError, ValueError):
-        bot.send_message(message.chat.id, "Используйте команду /chance [сумма]")
+        bot.send_message(message.chat.id, "Пожалуйста, используйте формат команды: /chance [сумма]")
 
-# Кнопка "команды"
-@bot.message_handler(commands=['commands'])
-def commands(message):
-    bot.send_message(message.chat.id, "/spin [сумма] - Сделать ставку в слоте\n"
-                                      "/balance - Узнать ваш баланс\n"
-                                      "/chance [сумма] - Узнать шанс выигрыша")
+# Кнопка "Команды" для отображения всех доступных команд
+@bot.message_handler(func=lambda message: message.text == "Команды")
+def show_commands(message):
+    commands = """
+/start - Начать игру
+/balance - Проверить баланс
+/spin [сумма] - Сделать ставку в слоте
+/casino [сумма] - Сделать ставку в казино
+/lottery [сумма] - Сделать ставку в лотерее
+/chance [сумма] - Узнать шанс на выигрыш
+"""
+    bot.send_message(message.chat.id, commands)
 
 # Запуск бота
 bot.polling()
