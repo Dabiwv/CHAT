@@ -86,15 +86,4 @@ def get_current_riddle_answer(chat_id):
     return user_state[chat_id]["riddle"]
 
 # Запуск бота
-bot.polling()    if current_riddle:
-        if message.text.strip().lower() == current_answer.lower():
-            bot.reply_to(message, "Правильно! Поздравляю!")
-            current_riddle = None  # Заканчиваем текущую загадку
-            current_answer = None
-        else:
-            bot.reply_to(message, "Неправильно. Попробуйте еще раз!")
-    else:
-        bot.reply_to(message, "Напишите /play, чтобы начать игру.")
-
-# Запуск бота
 bot.polling()
