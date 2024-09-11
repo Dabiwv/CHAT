@@ -1,188 +1,97 @@
 import telebot
-from telebot import types
 import random
 
-# Токен бота
 TOKEN = '6732720595:AAFePTUr9fb4678Avx4Y74ViuSBJQQ8mACM'
 bot = telebot.TeleBot(TOKEN)
 
 # Начальный баланс
-INITIAL_BALANCE = 2500
+starting_balance = 2500
+
+# Джекпот
+jackpot = 1000
 
 # Словарь для хранения балансов пользователей
-user_balances = {}
+balances = {}
 
-# Функция для генерации случайного выигрыша
+# Функция для генерации выигрыша с множителем
 def generate_win(amount):
-    win_chance = random.uniform(0.1, 1)  # Шанс выигрыша от 10% до 100%
-    win_amount = amount * win_chance
-    return win_amount, win_chance * 100
+    global jackpot
+    chance = random.uniform(0, 1)  # Вероятность от 0 до 1
 
-# Обработчик команды /start
+    if chance <= 0.5:  # 50% шанс проигрыша
+        jackpot += amount * 0.05  # 5% проигрыша добавляются в джекпот
+        return 0, chance * 100
+    elif chance <= 0.8:  # 30% шанс маленького выигрыша
+        win_amount = amount * 1.5  # Выигрыш в 1.5 раза больше
+        return win_amount, chance * 100
+    elif chance <= 0.95:  # 15% шанс среднего выигрыша
+        win_amount = amount * 2  # Выигрыш в 2 раза больше
+        return win_amount, chance * 100
+    else:  # 5% шанс сорвать джекпот
+        win_amount = jackpot
+        jackpot = 1000  # Обновляем джекпот после выигрыша
+        return win_amount, chance * 100
+
+# Команда "старт"
 @bot.message_handler(commands=['start'])
-def start_command(message):
-    user_id = message.from_user.id
-    if user_id not in user_balances:
-        user_balances[user_id] = INITIAL_BALANCE
-    bot.send_message(user_id, "Добро пожаловать в казино! Ваш баланс: 2500 💰")
-    show_commands(message)
+def start(message):
+    balances[message.from_user.id] = starting_balance
+    bot.send_message(message.chat.id, "Добро пожаловать в игру! Ваш начальный баланс: {} 💰".format(starting_balance))
 
-# Функция для отображения доступных команд
-def show_commands(message):
-    markup = types.InlineKeyboardMarkup()
-    btn_commands = types.InlineKeyboardButton("Команды", callback_data="show_commands")
-    markup.add(btn_commands)
-    bot.send_message(message.from_user.id, "Нажмите кнопку ниже для получения списка команд.", reply_markup=markup)
-
-# Обработчик нажатия на кнопку "Команды"
-@bot.callback_query_handler(func=lambda call: call.data == "show_commands")
-def handle_commands(call):
-    commands = (
-        "/start - Начать игру\n"
-        "/spin <сумма> - Играть в слот\n"
-        "/balance - Проверить баланс\n"
-        "/chance <сумма> - Проверить шанс на выигрыш\n"
-        "/casino <сумма> - Казино\n"
-        "/lottery <сумма> - Лотерея"
-    )
-    bot.send_message(call.message.chat.id, f"Доступные команды:\n{commands}")
-
-# Обработчик команды /spin
-@bot.message_handler(commands=['spin'])
-def spin_command(message):
-    user_id = message.from_user.id
-    if user_id not in user_balances:
-        bot.send_message(user_id, "Для начала игры используйте команду /start")
-        return
-    
-    try:
-        amount = int(message.text.split()[1])
-        if amount < 25:
-            bot.send_message(user_id, "Минимальная ставка: 25 💰")
-            return
-        
-        if amount > user_balances[user_id]:
-            bot.send_message(user_id, "Недостаточно средств!")
-            return
-        
-        win_amount, win_chance = generate_win(amount)
-        user_balances[user_id] -= amount
-        if win_amount > 0:
-            user_balances[user_id] += win_amount
-            result_message = f"Поздравляем! Вы выиграли {win_amount:.2f} 💰 (Шанс выигрыша: {win_chance:.2f}%)"
-        else:
-            result_message = "К сожалению, вы проиграли. Попробуйте снова!"
-        
-        bot.send_message(user_id, result_message)
-        bot.send_message(user_id, f"Ваш текущий баланс: {user_balances[user_id]:.2f} 💰")
-        
-    except IndexError:
-        bot.send_message(user_id, "Укажите сумму ставки: /spin <сумма>")
-    except ValueError:
-        bot.send_message(user_id, "Сумма ставки должна быть числом.")
-    except telebot.apihelper.ApiTelegramException as e:
-        print(f"Ошибка Telegram API: {e}")
-
-# Обработчик команды /balance
+# Команда "баланс"
 @bot.message_handler(commands=['balance'])
-def balance_command(message):
-    user_id = message.from_user.id
-    if user_id not in user_balances:
-        bot.send_message(user_id, "Для начала игры используйте команду /start")
-        return
-    
-    bot.send_message(user_id, f"Ваш текущий баланс: {user_balances[user_id]:.2f} 💰")
+def balance(message):
+    balance = balances.get(message.from_user.id, starting_balance)
+    bot.send_message(message.chat.id, "Ваш текущий баланс: {} 💰".format(balance))
 
-# Обработчик команды /chance
+# Команда "спин"
+@bot.message_handler(commands=['spin'])
+def spin(message):
+    try:
+        amount = int(message.text.split()[1])
+        if amount < 25:
+            bot.send_message(message.chat.id, "Минимальная ставка 25 💰")
+            return
+        
+        balance = balances.get(message.from_user.id, starting_balance)
+        if amount > balance:
+            bot.send_message(message.chat.id, "Недостаточно средств для ставки.")
+            return
+        
+        win_amount, chance = generate_win(amount)
+        balance -= amount
+        balance += win_amount
+        balances[message.from_user.id] = balance
+        
+        if win_amount == 0:
+            bot.send_message(message.chat.id, "К сожалению, вы проиграли. Шанс выигрыша: {:.2f}%".format(chance))
+        else:
+            bot.send_message(message.chat.id, "Поздравляем! Вы выиграли {:.2f} 💰 (Шанс выигрыша: {:.2f}%)".format(win_amount, chance))
+        
+        bot.send_message(message.chat.id, "Ваш текущий баланс: {} 💰".format(balance))
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "Используйте команду /spin [сумма]")
+
+# Команда "шанс"
 @bot.message_handler(commands=['chance'])
-def chance_command(message):
+def chance(message):
     try:
         amount = int(message.text.split()[1])
         if amount < 25:
-            bot.send_message(message.chat.id, "Минимальная ставка: 25 💰")
+            bot.send_message(message.chat.id, "Минимальная ставка 25 💰")
             return
-        
-        chance = random.uniform(10, 100)  # Шанс от 10% до 100%
-        bot.send_message(message.chat.id, f"Ваш шанс на выигрыш составляет {chance:.2f}%")
-    
-    except IndexError:
-        bot.send_message(message.chat.id, "Укажите сумму ставки: /chance <сумма>")
-    except ValueError:
-        bot.send_message(message.chat.id, "Сумма ставки должна быть числом.")
-    except telebot.apihelper.ApiTelegramException as e:
-        print(f"Ошибка Telegram API: {e}")
 
-# Обработчик команды /casino
-@bot.message_handler(commands=['casino'])
-def casino_command(message):
-    user_id = message.from_user.id
-    if user_id not in user_balances:
-        bot.send_message(user_id, "Для начала игры используйте команду /start")
-        return
-    
-    try:
-        amount = int(message.text.split()[1])
-        if amount < 25:
-            bot.send_message(user_id, "Минимальная ставка: 25 💰")
-            return
-        
-        if amount > user_balances[user_id]:
-            bot.send_message(user_id, "Недостаточно средств!")
-            return
-        
-        win_amount, win_chance = generate_win(amount)
-        user_balances[user_id] -= amount
-        if win_amount > 0:
-            user_balances[user_id] += win_amount
-            result_message = f"Поздравляем! Вы выиграли {win_amount:.2f} 💰 (Шанс выигрыша: {win_chance:.2f}%)"
-        else:
-            result_message = "К сожалению, вы проиграли. Попробуйте снова!"
-        
-        bot.send_message(user_id, result_message)
-        bot.send_message(user_id, f"Ваш текущий баланс: {user_balances[user_id]:.2f} 💰")
-        
-    except IndexError:
-        bot.send_message(user_id, "Укажите сумму ставки: /casino <сумма>")
-    except ValueError:
-        bot.send_message(user_id, "Сумма ставки должна быть числом.")
-    except telebot.apihelper.ApiTelegramException as e:
-        print(f"Ошибка Telegram API: {e}")
+        chance = random.uniform(10, 100)
+        bot.send_message(message.chat.id, "Ваш шанс на выигрыш составляет {:.2f}%".format(chance))
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "Используйте команду /chance [сумма]")
 
-# Обработчик команды /lottery
-@bot.message_handler(commands=['lottery'])
-def lottery_command(message):
-    user_id = message.from_user.id
-    if user_id not in user_balances:
-        bot.send_message(user_id, "Для начала игры используйте команду /start")
-        return
-    
-    try:
-        amount = int(message.text.split()[1])
-        if amount < 25:
-            bot.send_message(user_id, "Минимальная ставка: 25 💰")
-            return
-        
-        if amount > user_balances[user_id]:
-            bot.send_message(user_id, "Недостаточно средств!")
-            return
-        
-        win_amount, win_chance = generate_win(amount)
-        user_balances[user_id] -= amount
-        if win_amount > 0:
-            user_balances[user_id] += win_amount
-            result_message = f"Поздравляем! Вы выиграли {win_amount:.2f} 💰 (Шанс выигрыша: {win_chance:.2f}%)"
-        else:
-            result_message = "К сожалению, вы проиграли. Попробуйте снова!"
-        
-        bot.send_message(user_id, result_message)
-        bot.send_message(user_id, f"Ваш текущий баланс: {user_balances[user_id]:.2f} 💰")
-        
-    except IndexError:
-        bot.send_message(user_id, "Укажите сумму ставки: /lottery <сумма>")
-    except ValueError:
-        bot.send_message(user_id, "Сумма ставки должна быть числом.")
-    except telebot.apihelper.ApiTelegramException as e:
-        print(f"Ошибка Telegram API: {e}")
+# Кнопка "команды"
+@bot.message_handler(commands=['commands'])
+def commands(message):
+    bot.send_message(message.chat.id, "/spin [сумма] - Сделать ставку в слоте\n"
+                                      "/balance - Узнать ваш баланс\n"
+                                      "/chance [сумма] - Узнать шанс выигрыша")
 
 # Запуск бота
 bot.polling()
