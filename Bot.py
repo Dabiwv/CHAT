@@ -1,26 +1,48 @@
 import telebot
-import language_tool_python
+import requests
 
 # Токен вашего бота
 TOKEN = '6732720595:AAFePTUr9fb4678Avx4Y74ViuSBJQQ8mACM'
 bot = telebot.TeleBot(TOKEN)
 
-# Инициализация инструмента для проверки орфографии (по умолчанию русский)
-tool = language_tool_python.LanguageTool('ru')  # Указание русского языка для проверки
+# Переменная для хранения текущей загадки и ответа
+current_riddle = None
+current_answer = None
+
+def fetch_riddle():
+    # Используем API для получения загадок
+    url = 'https://jservice.io/api/random'
+    response = requests.get(url)
+    data = response.json()
+    riddle = data[0]['question']
+    answer = data[0]['answer']
+    return riddle, answer
+
+# Обработчик команды /start
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "Привет! Напишите /play, чтобы начать игру в загадки.")
+
+# Обработчик команды /play
+@bot.message_handler(commands=['play'])
+def start_game(message):
+    global current_riddle, current_answer
+    current_riddle, current_answer = fetch_riddle()
+    bot.reply_to(message, f"Загадка: {current_riddle}")
 
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
-def check_spelling(message):
-    text = message.text
-    # Поиск ошибок в предложении
-    matches = tool.check(text)
-    
-    if not matches:
-        bot.send_message(message.chat.id, "Ошибок не найдено!")
+def check_answer(message):
+    global current_riddle, current_answer
+    if current_riddle:
+        if message.text.strip().lower() == current_answer.lower():
+            bot.reply_to(message, "Правильно! Поздравляю!")
+            current_riddle = None  # Заканчиваем текущую загадку
+            current_answer = None
+        else:
+            bot.reply_to(message, "Неправильно. Попробуйте еще раз!")
     else:
-        # Исправляем ошибки
-        corrected_text = language_tool_python.utils.correct(text, matches)
-        bot.send_message(message.chat.id, f'Исправлено:\n{corrected_text}')
+        bot.reply_to(message, "Напишите /play, чтобы начать игру.")
 
 # Запуск бота
 bot.polling()
