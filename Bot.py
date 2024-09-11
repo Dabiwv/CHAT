@@ -14,7 +14,6 @@ user_balances = {}
 
 # Функция для генерации случайного выигрыша
 def generate_win(amount):
-    # Пример расчета выигрыша с шансом
     win_chance = random.uniform(0.1, 1)  # Шанс выигрыша от 10% до 100%
     win_amount = amount * win_chance
     return win_amount, win_chance * 100
@@ -81,6 +80,8 @@ def spin_command(message):
         bot.send_message(user_id, "Укажите сумму ставки: /spin <сумма>")
     except ValueError:
         bot.send_message(user_id, "Сумма ставки должна быть числом.")
+    except telebot.apihelper.ApiTelegramException as e:
+        print(f"Ошибка Telegram API: {e}")
 
 # Обработчик команды /balance
 @bot.message_handler(commands=['balance'])
@@ -108,6 +109,8 @@ def chance_command(message):
         bot.send_message(message.chat.id, "Укажите сумму ставки: /chance <сумма>")
     except ValueError:
         bot.send_message(message.chat.id, "Сумма ставки должна быть числом.")
+    except telebot.apihelper.ApiTelegramException as e:
+        print(f"Ошибка Telegram API: {e}")
 
 # Обработчик команды /casino
 @bot.message_handler(commands=['casino'])
@@ -142,6 +145,8 @@ def casino_command(message):
         bot.send_message(user_id, "Укажите сумму ставки: /casino <сумма>")
     except ValueError:
         bot.send_message(user_id, "Сумма ставки должна быть числом.")
+    except telebot.apihelper.ApiTelegramException as e:
+        print(f"Ошибка Telegram API: {e}")
 
 # Обработчик команды /lottery
 @bot.message_handler(commands=['lottery'])
@@ -176,6 +181,8 @@ def lottery_command(message):
         bot.send_message(user_id, "Укажите сумму ставки: /lottery <сумма>")
     except ValueError:
         bot.send_message(user_id, "Сумма ставки должна быть числом.")
+    except telebot.apihelper.ApiTelegramException as e:
+        print(f"Ошибка Telegram API: {e}")
 
 # Запуск бота
 bot.polling()
