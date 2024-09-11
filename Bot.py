@@ -1,31 +1,26 @@
 import telebot
-import sympy as sp
+import language_tool_python
 
 # Токен вашего бота
 TOKEN = '6732720595:AAFePTUr9fb4678Avx4Y74ViuSBJQQ8mACM'
 bot = telebot.TeleBot(TOKEN)
 
-# Основная функция для обработки математических выражений
+# Инициализация инструмента для проверки орфографии (по умолчанию русский)
+tool = language_tool_python.LanguageTool('ru')  # Указание русского языка для проверки
+
+# Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
-def handle_math(message):
-    try:
-        math_expression = message.text.strip()
-
-        # Проверяем, есть ли переменные, чтобы решать уравнения
-        if '=' in math_expression:
-            left_side, right_side = math_expression.split('=')
-            # Создаем переменную 'x' для решения уравнений
-            x = sp.Symbol('x')
-            equation = sp.Eq(sp.sympify(left_side), sp.sympify(right_side))
-            solution = sp.solve(equation, x)
-            bot.send_message(message.chat.id, f'Решение уравнения: {solution}')
-        else:
-            # Вычисляем обычные выражения
-            result = sp.sympify(math_expression)
-            bot.send_message(message.chat.id, f'Ответ: {result}')
-
-    except Exception as e:
-        bot.send_message(message.chat.id, f'Ошибка в выражении: {e}')
+def check_spelling(message):
+    text = message.text
+    # Поиск ошибок в предложении
+    matches = tool.check(text)
+    
+    if not matches:
+        bot.send_message(message.chat.id, "Ошибок не найдено!")
+    else:
+        # Исправляем ошибки
+        corrected_text = language_tool_python.utils.correct(text, matches)
+        bot.send_message(message.chat.id, f'Исправлено:\n{corrected_text}')
 
 # Запуск бота
 bot.polling()
