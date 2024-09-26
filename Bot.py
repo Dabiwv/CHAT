@@ -1,5 +1,6 @@
 import smtplib
 from email.mime.text import MIMEText
+from email.header import Header
 
 # Функция для отправки жалобы
 def send_complaint(user_identifier, num_requests):
@@ -25,8 +26,8 @@ def send_complaint(user_identifier, num_requests):
     # Отправка жалоб
     for _ in range(num_requests):
         for email in email_addresses:
-            msg = MIMEText(body_template)
-            msg['Subject'] = subject
+            msg = MIMEText(body_template.encode('utf-8'), _subtype='plain', _charset='utf-8')
+            msg['Subject'] = Header(subject, 'utf-8')
             msg['From'] = your_email
             msg['To'] = email
             
