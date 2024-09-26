@@ -1,40 +1,52 @@
 import smtplib
 from email.mime.text import MIMEText
-from getpass import getpass
 
-def send_email(to_email, username_or_id, violation_link, num_requests):
-    # Настройки почты
-    from_email = input("Введите ваш адрес электронной почты: ")
-    password = getpass("Введите пароль от почты: ")
+# Функция для отправки жалобы
+def send_complaint(user_identifier, num_requests):
+    smtp_server = 'smtp.gmail.com'
+    smtp_port = 587
+    your_email = 'ваша_почта@gmail.com'
+    your_password = 'ваш_пароль'  # Используйте пароль от вашей почты
 
-    # Текст жалобы
-    complaint_text = f"""Дорогая поддержка телеграм, данный пользователь оскорбляет мою религию и мои интересы: {violation_link} (юзернейм/ID: {username_or_id})."""
-
-    # Создаем сообщение
-    msg = MIMEText(complaint_text)
-    msg['Subject'] = 'Жалоба на пользователя'
-    msg['From'] = from_email
-    msg['To'] = to_email
-
-    # Список адресов для отправки
+    # Список почтовых адресов для отправки жалоб
     email_addresses = [
-        "abuse@telegram.org",
-        "sticker@telegram.org",
-        "support@telegram.org",
-        "stopCA@telegram.org",
-        "dmca@telegram.org"
+        'dmca@telegram.org',
+        'abuse@telegram.org',
+        'sticker@telegram.org',
+        'support@telegram.org',
+        'stopCA@telegram.org'
     ]
 
-    # Отправка сообщения несколько раз
+    subject = 'Жалоба на пользователя Telegram'
+    body_template = f"""Дорогая поддержка Telegram,
+    данный пользователь оскорбляет мою религию и мои интересы. Вот ссылка на нарушение: {user_identifier}.
+    """
+
+    # Отправка жалоб
     for _ in range(num_requests):
         for email in email_addresses:
+            msg = MIMEText(body_template)
+            msg['Subject'] = subject
+            msg['From'] = your_email
+            msg['To'] = email
+            
             try:
-                # Подключаемся к SMTP серверу
-                with smtplib.SMTP('smtp.gmail.com', 587) as server:
-                    server.starttls()  # Защищенное соединение
-                    server.login(from_email, password)  # Входим в почту
-                    server.sendmail(from_email, email, msg.as_string())  # Отправка сообщения
-                    print(f'Жалоба отправлена на {email}')
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()  # Защищенное соединение
+                server.login(your_email, your_password)
+                server.sendmail(your_email, email, msg.as_string())
+                print(f'Письмо отправлено на {email}')
+            except Exception as e:
+                print(f'Ошибка при отправке на {email}: {e}')
+            finally:
+                server.quit()
+
+# Запрос у пользователя
+user_identifier = input("Введите юзернейм, ID пользователя или ссылку на нарушение: ")
+num_requests = int(input("Сколько запросов отправить? "))
+
+# Вызов функции отправки жалоб
+send_complaint(user_identifier, num_requests)                    print(f'Жалоба отправлена на {email}')
             except Exception as e:
                 print(f'Ошибка при отправке на {email}: {e}')
 
