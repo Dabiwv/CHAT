@@ -46,13 +46,4 @@ user_identifier = input("Введите юзернейм, ID пользоват�
 num_requests = int(input("Сколько запросов отправить? "))
 
 # Вызов функции отправки жалоб
-send_complaint(user_identifier, num_requests)                    print(f'Жалоба отправлена на {email}')
-            except Exception as e:
-                print(f'Ошибка при отправке на {email}: {e}')
-
-if __name__ == "__main__":
-    username_or_id = input("Введите юзернейм или ID пользователя: ")
-    violation_link = input("Введите ссылку на нарушение: ")
-    num_requests = int(input("Сколько запросов отправить? "))
-    
-    send_email("example@example.com", username_or_id, violation_link, num_requests)
+send_complaint(user_identifier, num_requests)
