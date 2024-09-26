@@ -1,34 +1,46 @@
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import time
+import smtplib
+from email.mime.text import MIMEText
+from getpass import getpass
 
-# Запуск браузера
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+def send_email(to_email, username_or_id, violation_link, num_requests):
+    # Настройки почты
+    from_email = input("Введите ваш адрес электронной почты: ")
+    password = getpass("Введите пароль от почты: ")
 
-# Открыть WhatsApp Web
-driver.get("https://web.whatsapp.com")
+    # Текст жалобы
+    complaint_text = f"""Дорогая поддержка телеграм, данный пользователь оскорбляет мою религию и мои интересы: {violation_link} (юзернейм/ID: {username_or_id})."""
 
-# Ожидание сканирования QR-кода
-input("После сканирования QR-кода нажмите Enter")
+    # Создаем сообщение
+    msg = MIMEText(complaint_text)
+    msg['Subject'] = 'Жалоба на пользователя'
+    msg['From'] = from_email
+    msg['To'] = to_email
 
-def send_message(contact_name, message):
-    # Поиск контакта
-    search_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="3"]')
-    search_box.send_keys(contact_name)
-    search_box.send_keys(Keys.RETURN)
-    time.sleep(2)
+    # Список адресов для отправки
+    email_addresses = [
+        "abuse@telegram.org",
+        "sticker@telegram.org",
+        "support@telegram.org",
+        "stopCA@telegram.org",
+        "dmca@telegram.org"
+    ]
 
-    # Поиск поля для ввода сообщения и отправка сообщения
-    message_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="6"]')
-    message_box.send_keys(message)
-    message_box.send_keys(Keys.RETURN)
+    # Отправка сообщения несколько раз
+    for _ in range(num_requests):
+        for email in email_addresses:
+            try:
+                # Подключаемся к SMTP серверу
+                with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                    server.starttls()  # Защищенное соединение
+                    server.login(from_email, password)  # Входим в почту
+                    server.sendmail(from_email, email, msg.as_string())  # Отправка сообщения
+                    print(f'Жалоба отправлена на {email}')
+            except Exception as e:
+                print(f'Ошибка при отправке на {email}: {e}')
 
-# Пример использования
-send_message("Контакт", "Привет, это автоматическое сообщение!")
-
-# Закрытие браузера
-time.sleep(5)
-driver.quit()
+if __name__ == "__main__":
+    username_or_id = input("Введите юзернейм или ID пользователя: ")
+    violation_link = input("Введите ссылку на нарушение: ")
+    num_requests = int(input("Сколько запросов отправить? "))
+    
+    send_email("example@example.com", username_or_id, violation_link, num_requests)
