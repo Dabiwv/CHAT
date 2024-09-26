@@ -19,15 +19,17 @@ def send_complaint(user_identifier, num_requests):
     ]
 
     subject = 'Жалоба на пользователя Telegram'
-    body_template = f"""Дорогая поддержка Telegram,
-    данный пользователь оскорбляет мою религию и мои интересы. Вот ссылка на нарушение: {user_identifier}.
-    """
+    body_template = (
+        "Дорогая поддержка Telegram,\n"
+        "данный пользователь оскорбляет мою религию и мои интересы. Вот ссылка на нарушение: {}.\n"
+    )
 
     # Отправка жалоб
     for _ in range(num_requests):
         for email in email_addresses:
-            msg = MIMEText(body_template.encode('utf-8'), _subtype='plain', _charset='utf-8')
-            msg['Subject'] = Header(subject, 'utf-8')
+            body = body_template.format(user_identifier)  # Формируем текст с использованием str.format()
+            msg = MIMEText(body, 'plain', 'utf-8')  # Устанавливаем кодировку UTF-8
+            msg['Subject'] = Header(subject, 'utf-8')  # Заголовок тоже в UTF-8
             msg['From'] = your_email
             msg['To'] = email
             
